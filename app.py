@@ -9,7 +9,12 @@ st.set_page_config(layout="wide")
 st.title("Aplikasi Model Matematika Industri")
 
 # Tabs
-menu = st.tabs(["Optimasi Produksi", "Model Persediaan (EOQ)", "Model Antrian (M/M/1)", "Model Integral Energi Listrik"])
+menu = st.tabs([
+    "Optimasi Produksi", 
+    "Model Persediaan (EOQ)", 
+    "Model Antrian (M/M/1)", 
+    "Model Integral Energi Listrik"
+])
 
 # 1. Optimasi Produksi
 with menu[0]:
@@ -29,9 +34,24 @@ with menu[0]:
         res = linprog(c=[-c1, -c2], A_ub=[[a1, a2]], b_ub=[total_time], bounds=[(0, None), (0, None)])
         if res.success:
             st.success("Solusi Ditemukan")
-            st.write(f"Produksi optimal Produk A: {res.x[0]:.2f} unit")
-            st.write(f"Produksi optimal Produk B: {res.x[1]:.2f} unit")
+            xA = res.x[0]
+            xB = res.x[1]
+            st.write(f"Produksi optimal Produk A: {xA:.2f} unit")
+            st.write(f"Produksi optimal Produk B: {xB:.2f} unit")
             st.write(f"Keuntungan maksimal: Rp{(-res.fun):,.0f}")
+
+            # Grafik visualisasi area feasible
+            A_vals = np.linspace(0, total_time/a1, 100)
+            B_vals = (total_time - a1*A_vals) / a2
+
+            fig, ax = plt.subplots()
+            ax.plot(A_vals, B_vals, label="Batasan: 2A + 3B = 100")
+            ax.fill_between(A_vals, 0, B_vals, alpha=0.3, label="Area Feasible")
+            ax.plot(xA, xB, 'ro', label="Solusi Optimal")
+            ax.set_xlabel("Produk A")
+            ax.set_ylabel("Produk B")
+            ax.legend()
+            st.pyplot(fig)
         else:
             st.error("Solusi tidak ditemukan")
 
@@ -46,6 +66,19 @@ with menu[1]:
     if st.button("Hitung EOQ"):
         eoq = math.sqrt((2 * D * S) / H)
         st.success(f"Jumlah pemesanan optimal (EOQ): {eoq:.2f} unit")
+
+        # Grafik Biaya Total vs Q
+        Q = np.linspace(1, 2*eoq, 200)
+        TC = (D/Q)*S + (Q/2)*H
+
+        fig, ax = plt.subplots()
+        ax.plot(Q, TC, label="Total Cost")
+        ax.axvline(eoq, color='r', linestyle='--', label=f'EOQ ≈ {eoq:.2f}')
+        ax.set_xlabel("Jumlah Pemesanan (Q)")
+        ax.set_ylabel("Biaya Total")
+        ax.set_title("Kurva Biaya Total EOQ")
+        ax.legend()
+        st.pyplot(fig)
 
 # 3. Model Antrian (M/M/1)
 with menu[2]:
@@ -64,6 +97,19 @@ with menu[2]:
             st.write(f"Rata-rata waktu dalam sistem (W): {W:.2f} jam")
             st.write(f"Rata-rata waktu tunggu (Wq): {Wq:.2f} jam")
             st.write(f"Rata-rata jumlah pelanggan dalam sistem (L): {L:.2f}")
+
+            # Visualisasi Wq terhadap λ
+            lam_vals = np.linspace(0.1, mu - 0.01, 200)
+            Wq_vals = lam_vals / (mu * (mu - lam_vals))
+
+            fig, ax = plt.subplots()
+            ax.plot(lam_vals, Wq_vals, label="Waktu Tunggu (Wq)")
+            ax.axvline(lam, color='r', linestyle='--', label=f'λ Sekarang = {lam}')
+            ax.set_xlabel("λ (Pelanggan/jam)")
+            ax.set_ylabel("Waktu Tunggu Rata-rata (jam)")
+            ax.set_title("Wq terhadap Variasi λ")
+            ax.legend()
+            st.pyplot(fig)
         else:
             st.error("λ harus lebih kecil dari μ agar sistem stabil")
 
